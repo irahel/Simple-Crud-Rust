@@ -40,3 +40,44 @@ pub async fn todos_list_handler(
     };
     Ok(Json(json_response))
 }
+
+//Read one
+#[post("/todos", data = "<body>")]
+pub async fn create_todo_handler(
+    mut body: Json<to_do>,
+    data: &State<app_state>,
+) -> Result<Json<single_todo_response>, Custom<Json<response>>> {
+    let mut vec = data.todo_db.lock().unwrap();
+
+    for todo in vec.iter() {
+        if todo.title == body.title {
+            let error_response = response {
+                status: "fail".to_string(),
+                message: format!("Todo with title: '{}' already exists", todo.title),
+            };
+            return Err(Custom(Status::Conflict, Json(error_response)));
+        }
+    }
+
+    let uuid_id = Uuid::new_v4();
+    let datetime = Utc::now();
+
+    body.id = Some(uuid_id.to_string());
+    body.completed = Some(false);
+    body.createdAt = Some(datetime);
+    body.updatedAt = Some(datetime);
+
+    let todo = body.to_owned();
+
+    vec.push(body.into_inner());
+
+    let json_response = single_todo_response {
+        status: "success".to_string(),
+        data: TodoData {
+            todo: todo.into_inner(),
+        },
+    };
+
+    Ok(Json(json_response))
+}
+
