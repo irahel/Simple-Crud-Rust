@@ -41,7 +41,7 @@ pub async fn todos_list_handler(
     Ok(Json(json_response))
 }
 
-//Read one
+//Create
 #[post("/todos", data = "<body>")]
 pub async fn create_todo_handler(
     mut body: Json<to_do>,
@@ -81,21 +81,71 @@ pub async fn create_todo_handler(
     Ok(Json(json_response))
 }
 
-//Create
+//Read one
 #[get("/todos/<id>")]
 pub async fn get_todo_handler(
     id: String,
-    data: &State<AppState>,
-) -> Result<Json<SingleTodoResponse>, Custom<Json<GenericResponse>>> {
+    data: &State<app_state>,
+) -> Result<Json<single_todo_response>, Custom<Json<response>>> {
     let vec = data.todo_db.lock().unwrap();
 
     for todo in vec.iter() {
         if todo.id == Some(id.to_owned()) {
+            let json_response = single_todo_response {
+                status: "success".to_string(),
+                data: todo_data { todo: todo.clone() },
+            };
+
+            return Ok(Json(json_response));
+        }
+    }
+
+    let error_response = response {
+        status: "fail".to_string(),
+        message: format!("Todo with ID: {} not found", id),
+    };
+    Err(Custom(Status::NotFound, Json(error_response)))
+}
+
+#[patch("/todos/<id>", data = "<body>")]
+pub async fn edit_todo_handler(
+    id: String,
+    body: Json<update_todo_schema>,
+    data: &State<app_state>,
+) -> Result<Json<single_todo_response>, Custom<Json<response>>> {
+    let mut vec = data.todo_db.lock().unwrap();
+
+    for todo in vec.iter_mut() {
+        if todo.id == Some(id.clone()) {
+            let datetime = Utc::now();
+            let title = body.title.to_owned().unwrap_or(todo.title.to_owned());
+            let content = body.content.to_owned().unwrap_or(todo.content.to_owned());
+            let payload = Todo {
+                id: todo.id.to_owned(),
+                title: if !title.is_empty() {
+                    title
+                } else {
+                    todo.title.to_owned()
+                },
+                content: if !content.is_empty() {
+                    content
+                } else {
+                    todo.content.to_owned()
+                },
+                completed: if body.completed.is_some() {
+                    body.completed
+                } else {
+                    todo.completed
+                },
+                createdAt: todo.createdAt,
+                updatedAt: Some(datetime),
+            };
+            *todo = payload;
+
             let json_response = SingleTodoResponse {
                 status: "success".to_string(),
                 data: TodoData { todo: todo.clone() },
             };
-
             return Ok(Json(json_response));
         }
     }
@@ -104,5 +154,6 @@ pub async fn get_todo_handler(
         status: "fail".to_string(),
         message: format!("Todo with ID: {} not found", id),
     };
+
     Err(Custom(Status::NotFound, Json(error_response)))
 }
