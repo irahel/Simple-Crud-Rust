@@ -4,26 +4,17 @@ use serde::Serialize;
 #[macro_use] extern crate rocket;
 
 #[derive(Serialize)]
-pub struct GenericResponse {
+pub struct Response {
     pub status: String,
     pub message: String,
 }
 
-#[get("/")]
-fn index() -> &'static str {
-    "Hello, world!"
-}
-
-#[get("/<name>/<age>")]
-fn hello(name: String, age: u8) -> String {
-    format!("Hello, {} year old named {}!", age, name)
-}
 
 #[get("/healthchecker")]
-pub async fn health_checker_handler() -> Result<Json<GenericResponse>, Status> {
+pub async fn health_checker_handler() -> Result<Json<Response>, Status> {
     const MESSAGE: &str = "Build Simple CRUD API with Rust and Rocket";
 
-    let response_json = GenericResponse {
+    let response_json = Response {
         status: "success".to_string(),
         message: MESSAGE.to_string(),
     };
@@ -32,5 +23,5 @@ pub async fn health_checker_handler() -> Result<Json<GenericResponse>, Status> {
 
 #[launch]
 fn rocket() -> _ {
-    rocket::build().mount("/", routes![index, hello, health_checker_handler])
+    rocket::build().mount("/", routes![health_checker_handler])
 }
